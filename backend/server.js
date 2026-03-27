@@ -2,8 +2,13 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import http from 'http'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { Server as SocketIO } from 'socket.io'
 import { MongoClient } from 'mongodb'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 import heatmapRouter from './routes/heatmap.js'
 import adjustmentsRouter from './routes/adjustments.js'
 import inventoryRouter from './routes/inventory.js'
@@ -44,11 +49,20 @@ async function start() {
   app.use('/api', inventoryRouter)
   app.use('/api', searchRouter)
 
+  // Serve frontend build in production
+  const frontendPath = path.join(__dirname, '..', 'frontend', 'dist')
+  app.use(express.static(frontendPath))
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(frontendPath, 'index.html'))
+    }
+  })
+
   // Start Change Stream for real-time updates
   startChangeStream(db, io)
 
-  server.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`)
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on http://0.0.0.0:${PORT}`)
   })
 }
 
