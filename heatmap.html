@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warehouse Inventory Heatmap</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 32px 24px;
+      min-height: 100vh;
+    }
+
+    h1 { font-size: 22px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin-bottom: 24px; }
+
+    /* ── Stats cards ── */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px 24px;
+    }
+    .stat-card.primary { background: #1d4ed8; }
+    .stat-value { font-size: 28px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+    .stat-card.primary .stat-value { color: #fff; }
+    .stat-label { font-size: 13px; color: #64748b; }
+    .stat-card.primary .stat-label { color: rgba(255,255,255,0.85); }
+    .stat-sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    .stat-card.primary .stat-sub { color: rgba(255,255,255,0.6); }
+
+    /* ── Controls ── */
+    .controls { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .toggle-btn {
+      padding: 8px 20px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 2px solid #1d4ed8;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #fff;
+      color: #1d4ed8;
+      transition: all 0.15s;
+    }
+    .toggle-btn.active { background: #1d4ed8; color: #fff; }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      min-height: 24px;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: #64748b; }
+    .legend-swatch {
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      border: 1px solid rgba(0,0,0,0.08);
+      flex-shrink: 0;
+    }
+    .legend-gradient { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #94a3b8; }
+    .legend-bar {
+      width: 140px; height: 12px;
+      border-radius: 4px;
+      border: 1px solid #e2e8f0;
+      background: linear-gradient(to right, #dbeafe, #378ADD, #0C447C);
+    }
+
+    /* ── Card ── */
+    .card { background: #fff; border-radius: 12px; padding: 24px; overflow-x: auto; }
+
+    /* ── Grid ── */
+    table { border-collapse: separate; border-spacing: 4px; min-width: max-content; }
+    th {
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      padding: 4px 6px;
+      text-align: center;
+      white-space: nowrap;
+      user-select: none;
+    }
+    th.row-lbl { text-align: right; padding-right: 8px; min-width: 44px; }
+
+    td {
+      width: 54px;
+      height: 36px;
+      border-radius: 6px;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: default;
+      transition: filter 0.1s;
+      white-space: nowrap;
+    }
+    td:hover { filter: brightness(0.9); }
+
+    /* item-count palette */
+    td.c-empty { background: #f1f5f9; color: #cbd5e1; }
+    td.c0 { background: #f8fafc; color: #94a3b8; }   /* 1–49    */
+    td.c1 { background: #e2e8f0; color: #475569; }   /* 50–199  */
+    td.c2 { background: #B5D4F4; color: #1e40af; }   /* 200–499 */
+    td.c3 { background: #378ADD; color: #fff; }       /* 500–999 */
+    td.c4 { background: #0C447C; color: #fff; }       /* 1000+   */
+
+    /* ── Tooltip ── */
+    #tooltip {
+      display: none;
+      position: fixed;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 9999;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      white-space: nowrap;
+      line-height: 1.7;
+    }
+    #tooltip.show { display: block; }
+    #tooltip .t-title { font-weight: 700; color: #0f172a; }
+    #tooltip .t-body  { color: #475569; }
+    #tooltip .t-qty   { color: #1d4ed8; font-weight: 700; }
+  </style>
+</head>
+<body>
+
+  <h1>Warehouse Inventory Heatmap</h1>
+  <p class="subtitle">Inventory density by aisle and level</p>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <button class="toggle-btn active" id="btn-count" onclick="setMode('count')">Item Count</button>
+    <button class="toggle-btn"        id="btn-heat"  onclick="setMode('heat')">Heat Map</button>
+  </div>
+  <div class="legend" id="legend"></div>
+
+  <div class="card">
+    <table id="grid"></table>
+  </div>
+
+  <div id="tooltip"></div>
+
+<script>
+const data = [
+  {a:'A',l:'01',q:169},
+  {a:'B',l:'01',q:7381},{a:'B',l:'02',q:317},{a:'B',l:'03',q:225},{a:'B',l:'04',q:107},{a:'B',l:'05',q:216},
+  {a:'C',l:'01',q:952},{a:'C',l:'02',q:645},{a:'C',l:'03',q:625},{a:'C',l:'04',q:285},{a:'C',l:'05',q:161},
+  {a:'D',l:'01',q:255},{a:'D',l:'02',q:302},{a:'D',l:'03',q:247},{a:'D',l:'04',q:216},
+  {a:'E',l:'01',q:162},{a:'E',l:'02',q:207},{a:'E',l:'03',q:157},{a:'E',l:'04',q:195},
+  {a:'F',l:'01',q:188},{a:'F',l:'02',q:193},{a:'F',l:'03',q:248},{a:'F',l:'04',q:195},
+  {a:'G',l:'01',q:58},{a:'G',l:'02',q:195},{a:'G',l:'03',q:235},{a:'G',l:'04',q:315},{a:'G',l:'05',q:130},{a:'G',l:'06',q:111},{a:'G',l:'07',q:171},{a:'G',l:'08',q:187},{a:'G',l:'09',q:104},
+  {a:'H',l:'01',q:151},{a:'H',l:'02',q:223},{a:'H',l:'03',q:211},{a:'H',l:'04',q:211},
+  {a:'I',l:'01',q:170},{a:'I',l:'02',q:295},{a:'I',l:'03',q:232},{a:'I',l:'04',q:218},
+  {a:'J',l:'01',q:244},{a:'J',l:'02',q:239},{a:'J',l:'03',q:237},{a:'J',l:'04',q:169},
+  {a:'K',l:'01',q:272},{a:'K',l:'02',q:377},{a:'K',l:'03',q:187},{a:'K',l:'04',q:117},
+  {a:'L',l:'01',q:257},{a:'L',l:'02',q:245},{a:'L',l:'03',q:217},{a:'L',l:'04',q:167},
+  {a:'M',l:'01',q:242},{a:'M',l:'02',q:238},{a:'M',l:'03',q:181},{a:'M',l:'04',q:130},
+  {a:'N',l:'01',q:210},{a:'N',l:'02',q:303},{a:'N',l:'03',q:337},{a:'N',l:'04',q:151},
+  {a:'O',l:'01',q:265},{a:'O',l:'02',q:208},{a:'O',l:'03',q:215},{a:'O',l:'04',q:132},{a:'O',l:'05',q:52},
+  {a:'P',l:'01',q:163},{a:'P',l:'02',q:73},{a:'P',l:'03',q:20},
+  {a:'Q',l:'01',q:67},{a:'Q',l:'02',q:68},{a:'Q',l:'03',q:69},{a:'Q',l:'04',q:145},{a:'Q',l:'05',q:142},{a:'Q',l:'06',q:239},{a:'Q',l:'07',q:428},{a:'Q',l:'08',q:141},
+  {a:'R',l:'01',q:226},{a:'R',l:'02',q:102},{a:'R',l:'03',q:178},{a:'R',l:'04',q:360},{a:'R',l:'05',q:37},
+  {a:'S',l:'01',q:213},{a:'S',l:'02',q:128},{a:'S',l:'03',q:167},{a:'S',l:'04',q:166},{a:'S',l:'05',q:57},
+  {a:'T',l:'01',q:229},{a:'T',l:'02',q:130},{a:'T',l:'03',q:94},{a:'T',l:'04',q:195},{a:'T',l:'05',q:134},
+  {a:'U',l:'01',q:172},{a:'U',l:'02',q:143},{a:'U',l:'03',q:102},
+  {a:'V',l:'01',q:51},{a:'V',l:'02',q:89},{a:'V',l:'03',q:66},
+  {a:'W',l:'01',q:74},{a:'W',l:'02',q:21},{a:'W',l:'03',q:75},
+];
+
+// ── Derived values ──────────────────────────────────────────────
+const lookup = {};
+data.forEach(d => { lookup[d.a + '-' + d.l] = d.q; });
+
+const aisles = [...new Set(data.map(d => d.a))].sort();
+const levels = [...new Set(data.map(d => d.l))].sort();
+const maxQ   = Math.max(...data.map(d => d.q));
+const total  = data.reduce((s, d) => s + d.q, 0);
+const lvl01  = data.filter(d => d.l === '01').reduce((s, d) => s + d.q, 0);
+const lvlUp  = total - lvl01;
+
+let mode = 'count';
+
+// ── Formatters ──────────────────────────────────────────────────
+function fmt(n) {
+  return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
+}
+function fmtComma(n) {
+  return n.toLocaleString();
+}
+function pct(n) {
+  return Math.round(n / total * 100) + '%';
+}
+
+// ── Stats cards ─────────────────────────────────────────────────
+document.getElementById('stats').innerHTML = `
+  <div class="stat-card primary">
+    <div class="stat-value">${fmtComma(total)}</div>
+    <div class="stat-label">Total items in warehouse</div>
+    <div class="stat-sub">All aisles A–${aisles.at(-1)}</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">${fmtComma(lvl01)}</div>
+    <div class="stat-label">Items at level 01</div>
+    <div class="stat-sub">Ground floor · ${pct(lvl01)} of total</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">${fmtComma(lvlUp)}</div>
+    <div class="stat-label">Items at levels 02+</div>
+    <div class="stat-sub">Require ladder · ${pct(lvlUp)} of total</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">${aisles.length}</div>
+    <div class="stat-label">Aisles tracked</div>
+    <div class="stat-sub">Aisles A–${aisles.at(-1)}</div>
+  </div>
+`;
+
+// ── Legend ──────────────────────────────────────────────────────
+function renderLegend() {
+  const el = document.getElementById('legend');
+  if (mode === 'count') {
+    el.innerHTML = `
+      <div class="legend-item"><div class="legend-swatch" style="background:#f8fafc;border-color:#e2e8f0;"></div>1–49</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#e2e8f0;"></div>50–199</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#B5D4F4;"></div>200–499</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#378ADD;"></div>500–999</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#0C447C;"></div>1,000+</div>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="legend-gradient">
+        <span>Low</span>
+        <div class="legend-bar"></div>
+        <span>High</span>
+      </div>
+    `;
+  }
+}
+
+// ── Color helpers ────────────────────────────────────────────────
+function countClass(q) {
+  if (q >= 1000) return 'c4';
+  if (q >= 500)  return 'c3';
+  if (q >= 200)  return 'c2';
+  if (q >= 50)   return 'c1';
+  return 'c0';
+}
+
+function heatBg(q) {
+  const t = q / maxQ;
+  // #dbeafe → #378ADD → #0C447C  (three-stop gradient)
+  let r, g, b;
+  if (t < 0.5) {
+    const u = t * 2;
+    r = Math.round(219 + (55  - 219) * u);
+    g = Math.round(234 + (138 - 234) * u);
+    b = Math.round(254 + (221 - 254) * u);
+  } else {
+    const u = (t - 0.5) * 2;
+    r = Math.round(55  + (12  - 55)  * u);
+    g = Math.round(138 + (68  - 138) * u);
+    b = Math.round(221 + (124 - 221) * u);
+  }
+  return `rgb(${r},${g},${b})`;
+}
+
+function heatFg(q) {
+  return (q / maxQ) > 0.3 ? '#fff' : '#1e40af';
+}
+
+// ── Grid ─────────────────────────────────────────────────────────
+function renderGrid() {
+  let html = '<thead><tr><th class="row-lbl"></th>';
+  aisles.forEach(a => { html += `<th>${a}</th>`; });
+  html += '</tr></thead><tbody>';
+
+  levels.forEach(l => {
+    html += `<tr><th class="row-lbl">L${l}</th>`;
+    aisles.forEach(a => {
+      const q = lookup[a + '-' + l];
+      if (q == null) {
+        html += `<td class="c-empty" data-a="${a}" data-l="${l}">—</td>`;
+      } else if (mode === 'count') {
+        html += `<td class="${countClass(q)}" data-a="${a}" data-l="${l}" data-q="${q}">${fmt(q)}</td>`;
+      } else {
+        const bg = heatBg(q), fg = heatFg(q);
+        html += `<td style="background:${bg};color:${fg};" data-a="${a}" data-l="${l}" data-q="${q}">${fmt(q)}</td>`;
+      }
+    });
+    html += '</tr>';
+  });
+
+  html += '</tbody>';
+  document.getElementById('grid').innerHTML = html;
+}
+
+// ── Tooltip ──────────────────────────────────────────────────────
+const tip = document.getElementById('tooltip');
+
+document.addEventListener('mouseover', e => {
+  const td = e.target.closest('td[data-a]');
+  if (!td) { tip.classList.remove('show'); return; }
+
+  const a = td.dataset.a, l = td.dataset.l, q = td.dataset.q;
+  if (q) {
+    tip.innerHTML = `<div class="t-title">Aisle ${a} · Level ${l}</div>
+                     <div class="t-body"><span class="t-qty">${parseInt(q).toLocaleString()}</span> items</div>`;
+  } else {
+    tip.innerHTML = `<div class="t-title">Aisle ${a} · Level ${l}</div>
+                     <div class="t-body" style="color:#94a3b8;">No inventory</div>`;
+  }
+  tip.classList.add('show');
+});
+
+document.addEventListener('mousemove', e => {
+  if (tip.classList.contains('show')) {
+    tip.style.left = (e.clientX + 14) + 'px';
+    tip.style.top  = (e.clientY - 40) + 'px';
+  }
+});
+
+document.addEventListener('mouseout', e => {
+  if (!e.target.closest('td[data-a]')) tip.classList.remove('show');
+});
+
+// ── Mode toggle ──────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('btn-count').classList.toggle('active', m === 'count');
+  document.getElementById('btn-heat').classList.toggle('active', m === 'heat');
+  renderLegend();
+  renderGrid();
+}
+
+// ── Init ─────────────────────────────────────────────────────────
+renderLegend();
+renderGrid();
+</script>
+</body>
+</html>
