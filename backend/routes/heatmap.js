@@ -113,16 +113,14 @@ router.get('/inventory/heatmap', async (req, res) => {
     const lvl01and02 = data.filter(d => d.level === '01' || d.level === '02').reduce((s, d) => s + d.totalQuantity, 0)
     const lvlUp = total - lvl01and02 // Levels 03-05 only (require ladder)
 
-    // Count aisles where L01 has zero items
-    const l01ByAisle = {}
-    for (const d of data) {
-      if (d.level === '01') l01ByAisle[d.aisle] = d.totalQuantity
-    }
-    const emptyL01Aisles = VALID_AISLES.filter(a => !l01ByAisle[a] || l01ByAisle[a] === 0).length
+    // Count empty bins across Levels 1 & 2
+    const emptyLocations = data
+      .filter(d => d.level === '01' || d.level === '02')
+      .reduce((s, d) => s + d.emptyBins, 0)
 
     res.json({
       data,
-      stats: { total, lvl01: lvl01and02, lvlUp, emptyL01Aisles }
+      stats: { total, lvl01: lvl01and02, lvlUp, emptyLocations }
     })
   } catch (err) {
     console.error('Heatmap aggregation error:', err)

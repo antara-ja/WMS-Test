@@ -3,7 +3,7 @@ export default function StatCards({ stats, view }) {
     {
       primary: true,
       value: (stats.total || 0).toLocaleString(),
-      label: 'Total dresses in warehouse',
+      label: 'Total items in warehouse',
       sub: 'US Warehouse · all aisles'
     },
     {
@@ -17,9 +17,9 @@ export default function StatCards({ stats, view }) {
       sub: `Require ladder · ${stats.total ? Math.round((stats.lvlUp / stats.total) * 100) : 0}% of total`
     },
     {
-      value: stats.emptyL01Aisles ?? 0,
-      label: 'Empty L01 aisles',
-      sub: 'Aisles with zero ground-floor stock'
+      value: stats.emptyLocations ?? 0,
+      label: 'Empty Locations',
+      sub: 'Empty bins across Levels 1 & 2'
     }
   ]
 
