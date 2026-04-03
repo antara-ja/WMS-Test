@@ -3,7 +3,7 @@ import HeatmapGrid from './components/HeatmapGrid.jsx'
 import DetailPanel from './components/DetailPanel.jsx'
 import StatCards from './components/StatCards.jsx'
 import SearchBar from './components/SearchBar.jsx'
-import TimelineChart from './components/TimelineChart.jsx'
+import BestsellersList from './components/BestsellersList.jsx'
 import AgingTable from './components/AgingTable.jsx'
 import ToastContainer from './components/Toast.jsx'
 import useSocket from './hooks/useSocket.js'
@@ -188,7 +188,7 @@ export default function App() {
 
         {/* Bottom row: Timeline + Aging */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <TimelineChart />
+          <BestsellersList />
           <AgingTable />
         </div>
       </main>

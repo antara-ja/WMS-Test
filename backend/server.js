@@ -13,6 +13,7 @@ import heatmapRouter from './routes/heatmap.js'
 import adjustmentsRouter from './routes/adjustments.js'
 import inventoryRouter from './routes/inventory.js'
 import searchRouter from './routes/search.js'
+import bestsellersRouter from './routes/bestsellers.js'
 import { startChangeStream } from './services/changeStream.js'
 
 const app = express()
@@ -48,6 +49,7 @@ async function start() {
   app.use('/api', adjustmentsRouter)
   app.use('/api', inventoryRouter)
   app.use('/api', searchRouter)
+  app.use('/api', bestsellersRouter)
 
   // Serve frontend build in production
   const frontendPath = path.join(__dirname, '..', 'frontend', 'dist')
