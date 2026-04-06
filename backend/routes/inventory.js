@@ -34,29 +34,7 @@ router.get('/inventory/aging', async (req, res) => {
       { $match: { aisle: { $in: VALID_AISLES } } },
       // Only include bins 001–020
       { $match: { $expr: { $lte: [{ $toInt: '$bin' }, 20] } } },
-      // Merge duplicate items at same location (same style+color+location)
-      { $group: {
-        _id: {
-          locationLookupCode: '$locationLookupCode',
-          aisle: '$aisle',
-          itemNumber: '$itemNumber',
-          colorCode: '$colorCode'
-        },
-        sizes: { $addToSet: '$size' },
-        quantity: { $sum: '$quantity' },
-        customer: { $first: '$customer' },
-        lastTransaction: { $max: '$lastTransaction' }
-      }},
-      { $project: {
-        _id: 0,
-        locationLookupCode: '$_id.locationLookupCode',
-        aisle: '$_id.aisle',
-        itemNumber: '$_id.itemNumber',
-        colorCode: '$_id.colorCode',
-        sizes: 1,
-        quantity: 1,
-        customer: 1,
-        lastTransaction: 1,
+      { $addFields: {
         daysSinceMove: {
           $dateDiff: {
             startDate: '$lastTransaction',

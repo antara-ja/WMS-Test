@@ -13,16 +13,7 @@ const columns = [
   { accessorKey: 'locationLookupCode', header: 'Location', size: 120 },
   { accessorKey: 'itemNumber', header: 'Style', size: 80 },
   { accessorKey: 'colorCode', header: 'Color', size: 80 },
-  {
-    accessorKey: 'sizes',
-    header: 'Size',
-    size: 100,
-    cell: ({ getValue }) => {
-      const sizes = getValue()
-      if (!sizes || sizes.length === 0) return '--'
-      return sizes.sort().join(', ')
-    }
-  },
+  { accessorKey: 'size', header: 'Size', size: 60 },
   {
     accessorKey: 'quantity',
     header: 'Qty',
