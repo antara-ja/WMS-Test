@@ -14,12 +14,14 @@ const columns = [
   { accessorKey: 'itemNumber', header: 'Style#', size: 80 },
   { accessorKey: 'colorCode', header: 'Color', size: 80 },
   {
-    accessorKey: 'description',
-    header: 'Description',
-    size: 250,
-    cell: ({ getValue }) => (
-      <span className="truncate block max-w-[250px]">{getValue()}</span>
-    )
+    accessorKey: 'sizes',
+    header: 'Size',
+    size: 100,
+    cell: ({ getValue }) => {
+      const sizes = getValue()
+      if (!sizes || sizes.length === 0) return '--'
+      return sizes.sort().join(', ')
+    }
   },
   {
     accessorKey: 'quantity',

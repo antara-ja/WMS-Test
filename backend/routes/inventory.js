@@ -26,8 +26,8 @@ router.get('/inventory/aging', async (req, res) => {
         bin: { $arrayElemAt: [{ $split: ['$locationLookupCode', '-'] }, 2] },
         itemNumber: '$items.itemNumber',
         colorCode: '$items.colorCode',
-        description: '$items.description',
         quantity: '$items.itemQuantity',
+        size: { $arrayElemAt: ['$items.sizes.size', 0] },
         customer: { $arrayElemAt: ['$items.details.customer', 0] },
         lastTransaction: '$items.lastTransactionDate'
       }},
@@ -42,7 +42,7 @@ router.get('/inventory/aging', async (req, res) => {
           itemNumber: '$itemNumber',
           colorCode: '$colorCode'
         },
-        description: { $first: '$description' },
+        sizes: { $addToSet: '$size' },
         quantity: { $sum: '$quantity' },
         customer: { $first: '$customer' },
         lastTransaction: { $max: '$lastTransaction' }
@@ -53,7 +53,7 @@ router.get('/inventory/aging', async (req, res) => {
         aisle: '$_id.aisle',
         itemNumber: '$_id.itemNumber',
         colorCode: '$_id.colorCode',
-        description: 1,
+        sizes: 1,
         quantity: 1,
         customer: 1,
         lastTransaction: 1,
