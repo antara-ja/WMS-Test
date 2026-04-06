@@ -20,7 +20,6 @@ const columns = [
     size: 60,
     cell: ({ getValue }) => <span className="font-semibold">{getValue()}</span>
   },
-  { accessorKey: 'customer', header: 'Customer', size: 90 },
   {
     accessorKey: 'daysSinceMove',
     header: 'Days Idle',
