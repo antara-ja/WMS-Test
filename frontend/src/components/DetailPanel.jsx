@@ -74,26 +74,26 @@ export default function DetailPanel({ aisle, level, onClose }) {
               ) : (
                 <div className="space-y-2">
                   {bin.items.map((item, idx) => (
-                    <div key={idx} className="text-xs bg-slate-50 dark:bg-slate-750 rounded p-2">
+                    <div key={idx} className="text-xs bg-slate-100 dark:bg-slate-700 rounded p-2">
                       <div className="flex justify-between">
-                        <span className="font-semibold text-black dark:text-white">
+                        <span className="font-bold text-slate-900 dark:text-white">
                           #{item.itemNumber} / {item.colorCode}
                         </span>
                         <span className="font-bold text-slate-900 dark:text-white">
                           Qty: {item.quantity}
                         </span>
                       </div>
-                      <div className="text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                      <div className="text-slate-600 dark:text-slate-300 truncate mt-0.5">
                         {item.description}
                       </div>
-                      <div className="flex gap-3 mt-1 text-slate-400 dark:text-slate-500">
+                      <div className="flex gap-3 mt-1 text-slate-500 dark:text-slate-400">
                         {item.customer && <span>Customer: {item.customer}</span>}
                         {item.sizes?.length > 0 && (
                           <span>Sizes: {item.sizes.map(s => s.size).join(', ')}</span>
                         )}
                       </div>
                       {item.lastTransaction && (
-                        <div className="text-slate-400 dark:text-slate-500 mt-0.5">
+                        <div className="text-slate-500 dark:text-slate-400 mt-0.5">
                           Last move: {new Date(item.lastTransaction).toLocaleDateString()}
                         </div>
                       )}
