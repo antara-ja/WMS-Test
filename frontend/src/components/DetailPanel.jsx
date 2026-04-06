@@ -76,7 +76,7 @@ export default function DetailPanel({ aisle, level, onClose }) {
                   {bin.items.map((item, idx) => (
                     <div key={idx} className="text-xs bg-slate-50 dark:bg-slate-750 rounded p-2">
                       <div className="flex justify-between">
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">
+                        <span className="font-semibold text-black dark:text-white">
                           #{item.itemNumber} / {item.colorCode}
                         </span>
                         <span className="font-bold text-slate-900 dark:text-white">
