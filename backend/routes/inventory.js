@@ -29,18 +29,42 @@ router.get('/inventory/aging', async (req, res) => {
         description: '$items.description',
         quantity: '$items.itemQuantity',
         customer: { $arrayElemAt: ['$items.details.customer', 0] },
-        lastTransaction: '$items.lastTransactionDate',
+        lastTransaction: '$items.lastTransactionDate'
+      }},
+      { $match: { aisle: { $in: VALID_AISLES } } },
+      // Only include bins 001–020
+      { $match: { $expr: { $lte: [{ $toInt: '$bin' }, 20] } } },
+      // Merge duplicate items at same location (same style+color+location)
+      { $group: {
+        _id: {
+          locationLookupCode: '$locationLookupCode',
+          aisle: '$aisle',
+          itemNumber: '$itemNumber',
+          colorCode: '$colorCode'
+        },
+        description: { $first: '$description' },
+        quantity: { $sum: '$quantity' },
+        customer: { $first: '$customer' },
+        lastTransaction: { $max: '$lastTransaction' }
+      }},
+      { $project: {
+        _id: 0,
+        locationLookupCode: '$_id.locationLookupCode',
+        aisle: '$_id.aisle',
+        itemNumber: '$_id.itemNumber',
+        colorCode: '$_id.colorCode',
+        description: 1,
+        quantity: 1,
+        customer: 1,
+        lastTransaction: 1,
         daysSinceMove: {
           $dateDiff: {
-            startDate: '$items.lastTransactionDate',
+            startDate: '$lastTransaction',
             endDate: '$$NOW',
             unit: 'day'
           }
         }
-      }},
-      { $match: { aisle: { $in: VALID_AISLES } } },
-      // Only include bins 001–020
-      { $match: { $expr: { $lte: [{ $toInt: '$bin' }, 20] } } }
+      }}
     ]
 
     // Optional filters

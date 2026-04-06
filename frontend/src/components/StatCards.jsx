@@ -8,18 +8,18 @@ export default function StatCards({ stats, view }) {
     },
     {
       value: (stats.lvl01 || 0).toLocaleString(),
-      label: 'Dresses at Levels 1 & 2',
+      label: 'Items at Levels 1 & 2',
       sub: `No ladder needed · ${stats.total ? Math.round((stats.lvl01 / stats.total) * 100) : 0}% of total`
     },
     {
       value: (stats.lvlUp || 0).toLocaleString(),
-      label: 'Dresses at Levels 3-5',
+      label: 'Items at Levels 3-5',
       sub: `Require ladder · ${stats.total ? Math.round((stats.lvlUp / stats.total) * 100) : 0}% of total`
     },
     {
       value: stats.emptyLocations ?? 0,
       label: 'Empty Locations',
-      sub: 'Empty bins across Levels 1 & 2'
+      sub: 'Empty boxes across Levels 1 & 2'
     }
   ]
 
