@@ -11,7 +11,7 @@ const VALID_AISLES = ['B','C','D','E','F','G','H','I','J','K','L','M','N','O','Q
 
 const columns = [
   { accessorKey: 'locationLookupCode', header: 'Location', size: 120 },
-  { accessorKey: 'itemNumber', header: 'Style#', size: 80 },
+  { accessorKey: 'itemNumber', header: 'Style', size: 80 },
   { accessorKey: 'colorCode', header: 'Color', size: 80 },
   {
     accessorKey: 'sizes',
