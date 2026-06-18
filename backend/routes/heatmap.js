@@ -2,17 +2,24 @@ import { Router } from 'express'
 
 const router = Router()
 
-const VALID_AISLES = ['B','C','D','E','F','G','H','I','J','K','L','M','N','O','Q']
-const MAX_BIN = 20 // Only include bins 001–020
+const US_VALID_AISLES = ['B','C','D','E','F','G','H','I','J','K','L','M','N','O','Q']
+const US_MAX_BIN = 20
 
-// GET /api/inventory/heatmap?view=count|avg|empty|picks
+const EU_VALID_AISLES = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X']
+const EU_MAX_BIN = 86
+
+// GET /api/inventory/heatmap?view=count|avg|empty|picks&warehouse=US|EU
 router.get('/inventory/heatmap', async (req, res) => {
   const view = req.query.view || 'count'
+  const warehouse = req.query.warehouse === 'EU' ? 'EU' : 'US'
   const db = req.app.locals.db
+
+  const VALID_AISLES = warehouse === 'EU' ? EU_VALID_AISLES : US_VALID_AISLES
+  const MAX_BIN = warehouse === 'EU' ? EU_MAX_BIN : US_MAX_BIN
 
   try {
     const basePipeline = [
-      { $match: { warehouseCode: 'US' } },
+      { $match: { warehouseCode: warehouse } },
       { $project: {
         parts: { $split: ['$locationLookupCode', '-'] },
         totalItems: { $sum: '$items.itemQuantity' },
@@ -32,7 +39,6 @@ router.get('/inventory/heatmap', async (req, res) => {
         hasItems: 1
       }},
       { $match: { aisle: { $in: VALID_AISLES } } },
-      // Only include bins 001–020
       { $match: { $expr: { $lte: [{ $toInt: '$bin' }, MAX_BIN] } } },
       { $group: {
         _id: { aisle: '$aisle', level: '$level' },
@@ -47,7 +53,6 @@ router.get('/inventory/heatmap', async (req, res) => {
 
     const raw = await db.collection('locationInventory').aggregate(basePipeline).toArray()
 
-    // Compute value based on view
     const data = raw.map(r => {
       let value
       switch (view) {
@@ -71,8 +76,8 @@ router.get('/inventory/heatmap', async (req, res) => {
       }
     })
 
-    // For pick frequency view, we need adjustment data
-    if (view === 'picks') {
+    // Pick frequency view (US only)
+    if (view === 'picks' && warehouse === 'US') {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
       const picks = await db.collection('adjustments').aggregate([
         { $match: {
@@ -89,7 +94,7 @@ router.get('/inventory/heatmap', async (req, res) => {
           level: { $arrayElemAt: ['$parts', 1] }
         }},
         { $match: {
-          aisle: { $in: VALID_AISLES },
+          aisle: { $in: US_VALID_AISLES },
           level: { $regex: /^\d+$/ }
         }},
         { $group: {
@@ -108,36 +113,43 @@ router.get('/inventory/heatmap', async (req, res) => {
       }
     }
 
-    // Compute stats
     const total = data.reduce((s, d) => s + d.totalQuantity, 0)
-    const lvl01and02 = data.filter(d => d.level === '01' || d.level === '02').reduce((s, d) => s + d.totalQuantity, 0)
-    const lvlUp = total - lvl01and02 // Levels 03-05 only (require ladder)
 
-    // Count empty bins across Levels 1 & 2
-    const emptyLocations = data
-      .filter(d => d.level === '01' || d.level === '02')
-      .reduce((s, d) => s + d.emptyBins, 0)
-
-    res.json({
-      data,
-      stats: { total, lvl01: lvl01and02, lvlUp, emptyLocations }
-    })
+    if (warehouse === 'EU') {
+      const emptyLocations = data.reduce((s, d) => s + d.emptyBins, 0)
+      res.json({ data, stats: { total, emptyLocations } })
+    } else {
+      const lvl01and02 = data
+        .filter(d => d.level === '01' || d.level === '02')
+        .reduce((s, d) => s + d.totalQuantity, 0)
+      const lvlUp = total - lvl01and02
+      const emptyLocations = data
+        .filter(d => d.level === '01' || d.level === '02')
+        .reduce((s, d) => s + d.emptyBins, 0)
+      res.json({ data, stats: { total, lvl01: lvl01and02, lvlUp, emptyLocations } })
+    }
   } catch (err) {
     console.error('Heatmap aggregation error:', err)
     res.status(500).json({ error: 'Failed to fetch heatmap data' })
   }
 })
 
-// GET /api/inventory/detail/:aisle/:level
+// GET /api/inventory/detail/:aisle/:level?warehouse=US|EU
 router.get('/inventory/detail/:aisle/:level', async (req, res) => {
   const { aisle, level } = req.params
+  const warehouse = req.query.warehouse === 'EU' ? 'EU' : 'US'
   const db = req.app.locals.db
+
+  // US: bins 001-020; EU: any numeric bin
+  const binPattern = warehouse === 'EU'
+    ? new RegExp(`^${aisle}-${level}-\\d+$`)
+    : new RegExp(`^${aisle}-${level}-(0[01][0-9]|020)$`)
 
   try {
     const result = await db.collection('locationInventory').aggregate([
       { $match: {
-        warehouseCode: 'US',
-        locationLookupCode: { $regex: new RegExp(`^${aisle}-${level}-(0[01][0-9]|020)$`) }
+        warehouseCode: warehouse,
+        locationLookupCode: { $regex: binPattern }
       }},
       { $project: {
         locationLookupCode: 1,

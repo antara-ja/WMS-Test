@@ -1,17 +1,22 @@
 import { memo } from 'react'
 import { getHeatColor, formatNumber } from '../utils/heatColors.js'
 
-const AISLES = ['B','C','D','E','F','G','H','I','J','K','L','M','N','O','Q']
-const LEVELS = ['01','02','03','04','05']
+const US_AISLES = ['B','C','D','E','F','G','H','I','J','K','L','M','N','O','Q']
+const US_LEVELS = ['01','02','03','04','05']
+const EU_AISLES = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X']
+const EU_LEVELS = ['01','02','03','04','05','06','07','08','09']
 
-function HeatmapGrid({ data, view, onCellClick, highlightCells, flashCells }) {
-  // Build lookup map
+function HeatmapGrid({ data, view, onCellClick, highlightCells, flashCells, warehouse = 'US' }) {
+  const AISLES = warehouse === 'EU' ? EU_AISLES : US_AISLES
+  const LEVELS = warehouse === 'EU' ? EU_LEVELS : US_LEVELS
+
   const cellMap = {}
   for (const d of data) {
     cellMap[`${d.aisle}-${d.level}`] = d
   }
 
   const isEmptyView = view === 'empty'
+  const cellWidth = warehouse === 'EU' ? '44px' : '60px'
 
   return (
     <div className="overflow-x-auto">
@@ -63,12 +68,12 @@ function HeatmapGrid({ data, view, onCellClick, highlightCells, flashCells }) {
                       backgroundColor: colors.bg,
                       color: colors.text,
                       border: colors.border ? `2px solid ${colors.border}` : '1px solid rgba(0,0,0,0.06)',
-                      minWidth: '60px',
+                      minWidth: cellWidth,
                       height: '44px'
                     }}
                     onClick={() => onCellClick?.({ type: 'cell', aisle, level })}
                     title={`Aisle ${aisle}, Level ${level}: ${value.toLocaleString()} ${
-                      view === 'count' ? 'dresses' :
+                      view === 'count' ? 'items' :
                       view === 'avg' ? 'avg/bin' :
                       view === 'empty' ? 'empty bins' :
                       'picks (7d)'

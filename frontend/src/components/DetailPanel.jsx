@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 
-export default function DetailPanel({ aisle, level, onClose }) {
+export default function DetailPanel({ aisle, level, onClose, warehouse = 'US' }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -9,12 +9,12 @@ export default function DetailPanel({ aisle, level, onClose }) {
   useEffect(() => {
     setLoading(true)
     setError(null)
-    fetch(`/api/inventory/detail/${aisle}/${level}`)
+    fetch(`/api/inventory/detail/${aisle}/${level}?warehouse=${warehouse}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [aisle, level])
+  }, [aisle, level, warehouse])
 
   // Click outside to close
   useEffect(() => {

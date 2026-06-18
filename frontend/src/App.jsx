@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import HeatmapGrid from './components/HeatmapGrid.jsx'
 import DetailPanel from './components/DetailPanel.jsx'
 import StatCards from './components/StatCards.jsx'
@@ -8,18 +8,25 @@ import AgingTable from './components/AgingTable.jsx'
 import ToastContainer from './components/Toast.jsx'
 import useSocket from './hooks/useSocket.js'
 
-const VIEWS = [
+const US_VIEWS = [
   { id: 'count', label: 'Dress Count' },
   { id: 'avg', label: 'Avg per Bin' },
   { id: 'empty', label: 'Empty Bins' },
   { id: 'picks', label: 'Pick Frequency' },
 ]
 
+const EU_VIEWS = [
+  { id: 'count', label: 'Item Count' },
+  { id: 'avg', label: 'Avg per Bin' },
+  { id: 'empty', label: 'Empty Bins' },
+]
+
 export default function App() {
   const [dark, setDark] = useState(() => {
     const saved = localStorage.getItem('wms-dark-mode')
-    return saved !== null ? saved === 'true' : true // dark by default
+    return saved !== null ? saved === 'true' : true
   })
+  const [warehouse, setWarehouse] = useState('US')
   const [view, setView] = useState('count')
   const [heatData, setHeatData] = useState([])
   const [stats, setStats] = useState({})
@@ -31,18 +38,18 @@ export default function App() {
 
   const { isConnected, lastEvent } = useSocket()
 
-  // Dark mode toggle
+  const VIEWS = warehouse === 'EU' ? EU_VIEWS : US_VIEWS
+
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark)
     localStorage.setItem('wms-dark-mode', dark)
   }, [dark])
 
-  // Fetch heatmap data
   const fetchHeatmap = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/inventory/heatmap?view=${view}`)
+      const res = await fetch(`/api/inventory/heatmap?view=${view}&warehouse=${warehouse}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setHeatData(json.data)
@@ -52,20 +59,17 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [view])
+  }, [view, warehouse])
 
   useEffect(() => { fetchHeatmap() }, [fetchHeatmap])
 
-  // Auto-refresh every 30s
   useEffect(() => {
     const id = setInterval(fetchHeatmap, 30000)
     return () => clearInterval(id)
   }, [fetchHeatmap])
 
-  // Flash cells on WebSocket event
   useEffect(() => {
     if (!lastEvent) return
-    // Parse source/dest location to find aisle-level
     const flash = new Set()
     for (const loc of [lastEvent.from, lastEvent.to]) {
       if (!loc) continue
@@ -77,7 +81,6 @@ export default function App() {
     if (flash.size > 0) {
       setFlashCells(flash)
       setTimeout(() => setFlashCells(null), 1500)
-      // Refresh data
       fetchHeatmap()
     }
   }, [lastEvent, fetchHeatmap])
@@ -86,6 +89,16 @@ export default function App() {
     if (info.type === 'cell') {
       setDetailPanel({ aisle: info.aisle, level: info.level })
     }
+  }
+
+  function handleWarehouseSwitch(wh) {
+    if (wh === warehouse) return
+    if (wh === 'EU' && view === 'picks') setView('count')
+    setWarehouse(wh)
+    setHeatData([])
+    setStats({})
+    setDetailPanel(null)
+    setHighlightCells(null)
   }
 
   return (
@@ -97,19 +110,36 @@ export default function App() {
             <h1 className="text-lg font-bold text-slate-900 dark:text-white">
               WMS Dashboard
             </h1>
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+            <div
+              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}
               title={isConnected ? 'WebSocket connected' : 'WebSocket disconnected'}
             />
+            {/* US / EU warehouse toggle */}
+            <div className="flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden ml-2">
+              {['US', 'EU'].map(wh => (
+                <button
+                  key={wh}
+                  onClick={() => handleWarehouseSwitch(wh)}
+                  className={`px-4 py-1.5 text-sm font-semibold transition-colors ${
+                    warehouse === wh
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  {wh}
+                </button>
+              ))}
+            </div>
           </div>
 
-          <SearchBar onHighlight={setHighlightCells} />
+          {warehouse === 'US' && <SearchBar onHighlight={setHighlightCells} />}
 
           <button
             onClick={() => setDark(d => !d)}
             className="shrink-0 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 text-sm"
             title="Toggle dark mode"
           >
-            {dark ? '\u2600\uFE0F' : '\uD83C\uDF19'}
+            {dark ? '☀️' : '🌙'}
           </button>
         </div>
       </header>
@@ -117,7 +147,7 @@ export default function App() {
       {/* Main content */}
       <main className="p-6 max-w-[1600px] mx-auto">
         {/* Stat Cards */}
-        <StatCards stats={stats} view={view} />
+        <StatCards stats={stats} view={view} warehouse={warehouse} />
 
         {/* View toggles + controls */}
         <div className="flex items-center justify-between mb-4">
@@ -182,15 +212,18 @@ export default function App() {
               onCellClick={handleCellClick}
               highlightCells={highlightCells}
               flashCells={flashCells}
+              warehouse={warehouse}
             />
           )}
         </div>
 
-        {/* Bottom row: Timeline + Aging */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <BestsellersList />
-          <AgingTable />
-        </div>
+        {/* Bottom row: Bestsellers + Aging (US only) */}
+        {warehouse === 'US' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <BestsellersList />
+            <AgingTable />
+          </div>
+        )}
       </main>
 
       {/* Detail Panel */}
@@ -199,6 +232,7 @@ export default function App() {
           aisle={detailPanel.aisle}
           level={detailPanel.level}
           onClose={() => setDetailPanel(null)}
+          warehouse={warehouse}
         />
       )}
 
