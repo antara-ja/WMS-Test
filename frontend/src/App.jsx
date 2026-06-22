@@ -26,7 +26,7 @@ export default function App() {
     const saved = localStorage.getItem('wms-dark-mode')
     return saved !== null ? saved === 'true' : true
   })
-  const [warehouse, setWarehouse] = useState('US')
+  const [warehouse, setWarehouse] = useState(() => localStorage.getItem('wms-warehouse') || 'US')
   const [view, setView] = useState('count')
   const [heatData, setHeatData] = useState([])
   const [stats, setStats] = useState({})
@@ -94,6 +94,7 @@ export default function App() {
   function handleWarehouseSwitch(wh) {
     if (wh === warehouse) return
     if (wh === 'EU' && view === 'picks') setView('count')
+    localStorage.setItem('wms-warehouse', wh)
     setWarehouse(wh)
     setHeatData([])
     setStats({})
