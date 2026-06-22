@@ -11,6 +11,7 @@ function watch(db, io) {
 
       io.emit('adjustment', {
         id: adj.adjustmentId,
+        warehouse: adj.warehouseCode,
         user: adj.userId,
         type: adj.adjustmentType,
         from: adj.sourceLocationCode,

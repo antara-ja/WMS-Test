@@ -36,7 +36,7 @@ export default function App() {
   const [highlightCells, setHighlightCells] = useState(null)
   const [flashCells, setFlashCells] = useState(null)
 
-  const { isConnected, lastEvent } = useSocket()
+  const { isConnected, lastEvent } = useSocket(warehouse)
 
   const VIEWS = warehouse === 'EU' ? EU_VIEWS : US_VIEWS
 
