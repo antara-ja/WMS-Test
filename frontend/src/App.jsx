@@ -9,7 +9,7 @@ import ToastContainer from './components/Toast.jsx'
 import useSocket from './hooks/useSocket.js'
 
 const US_VIEWS = [
-  { id: 'count', label: 'Dress Count' },
+  { id: 'count', label: 'Item Count' },
   { id: 'avg', label: 'Avg per Bin' },
   { id: 'empty', label: 'Empty Bins' },
   { id: 'picks', label: 'Pick Frequency' },
