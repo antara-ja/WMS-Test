@@ -8,18 +8,52 @@ const US_MAX_BIN = 20
 const EU_VALID_AISLES = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X']
 const EU_MAX_BIN = 86
 
-// GET /api/inventory/heatmap?view=count|avg|empty|picks&warehouse=US|EU
+// GET /api/inventory/classcodes?warehouse=US|EU
+router.get('/inventory/classcodes', async (req, res) => {
+  const warehouse = req.query.warehouse === 'EU' ? 'EU' : 'US'
+  const db = req.app.locals.db
+  try {
+    const codes = await db.collection('items')
+      .distinct('classCode', { company: warehouse, active: true, classCode: { $nin: ['', null] } })
+    res.json(codes.sort())
+  } catch (err) {
+    console.error('ClassCodes error:', err)
+    res.status(500).json({ error: 'Failed to fetch class codes' })
+  }
+})
+
+// GET /api/inventory/heatmap?view=count|avg|empty|picks&warehouse=US|EU&classCode=DRESS
 router.get('/inventory/heatmap', async (req, res) => {
   const view = req.query.view || 'count'
   const warehouse = req.query.warehouse === 'EU' ? 'EU' : 'US'
+  const classCode = req.query.classCode || ''
   const db = req.app.locals.db
 
   const VALID_AISLES = warehouse === 'EU' ? EU_VALID_AISLES : US_VALID_AISLES
   const MAX_BIN = warehouse === 'EU' ? EU_MAX_BIN : US_MAX_BIN
 
+  // If classCode filter active, pre-fetch matching item numbers
+  let classCodeFilterStage = null
+  if (classCode) {
+    const matchingNums = await db.collection('items')
+      .distinct('itemNumber', { company: warehouse, classCode })
+    classCodeFilterStage = {
+      $addFields: {
+        items: {
+          $filter: {
+            input: '$items',
+            as: 'item',
+            cond: { $in: ['$$item.itemNumber', matchingNums] }
+          }
+        }
+      }
+    }
+  }
+
   try {
     const basePipeline = [
       { $match: { warehouseCode: warehouse } },
+      ...(classCodeFilterStage ? [classCodeFilterStage] : []),
       { $project: {
         parts: { $split: ['$locationLookupCode', '-'] },
         totalItems: { $sum: '$items.itemQuantity' },

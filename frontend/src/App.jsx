@@ -35,6 +35,8 @@ export default function App() {
   const [detailPanel, setDetailPanel] = useState(null)
   const [highlightCells, setHighlightCells] = useState(null)
   const [flashCells, setFlashCells] = useState(null)
+  const [classCode, setClassCode] = useState('')
+  const [classCodes, setClassCodes] = useState([])
 
   const { isConnected, lastEvent } = useSocket(warehouse)
 
@@ -45,11 +47,19 @@ export default function App() {
     localStorage.setItem('wms-dark-mode', dark)
   }, [dark])
 
+  useEffect(() => {
+    fetch(`/api/inventory/classcodes?warehouse=${warehouse}`)
+      .then(r => r.json())
+      .then(codes => setClassCodes(codes))
+      .catch(() => setClassCodes([]))
+  }, [warehouse])
+
   const fetchHeatmap = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch(`/api/inventory/heatmap?view=${view}&warehouse=${warehouse}`)
+      const ccParam = classCode ? `&classCode=${classCode}` : ''
+      const res = await fetch(`/api/inventory/heatmap?view=${view}&warehouse=${warehouse}${ccParam}`)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       setHeatData(json.data)
@@ -59,7 +69,7 @@ export default function App() {
     } finally {
       setLoading(false)
     }
-  }, [view, warehouse])
+  }, [view, warehouse, classCode])
 
   useEffect(() => { fetchHeatmap() }, [fetchHeatmap])
 
@@ -100,6 +110,7 @@ export default function App() {
     setStats({})
     setDetailPanel(null)
     setHighlightCells(null)
+    setClassCode('')
   }
 
   return (
@@ -149,6 +160,26 @@ export default function App() {
       <main className="p-6 max-w-[1600px] mx-auto">
         {/* Stat Cards */}
         <StatCards stats={stats} view={view} warehouse={warehouse} />
+
+        {/* Class code filter pills */}
+        {classCodes.length > 0 && (
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="text-xs text-slate-500 dark:text-slate-400 mr-1">Filter:</span>
+            {['', ...classCodes].map(code => (
+              <button
+                key={code || 'all'}
+                onClick={() => setClassCode(code)}
+                className={`px-3 py-1 text-xs font-medium rounded-full transition-colors ${
+                  classCode === code
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'
+                }`}
+              >
+                {code || 'All'}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* View toggles + controls */}
         <div className="flex items-center justify-between mb-4">
